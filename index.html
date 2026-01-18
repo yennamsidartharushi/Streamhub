@@ -1,0 +1,321 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Streamhub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --accent: #ff0000; --bg: #000000; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+            width: 100%;
+        }
+
+        /* Fluid Typography */
+        .hero-title { font-size: clamp(2.5rem, 8vw, 6rem); line-height: 0.9; }
+        
+        /* Smooth Scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Modern Glassmorphism */
+        .glass {
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Movie Card Aspect Ratio */
+        .card-aspect { aspect-ratio: 2/3; }
+
+        /* Professional Transitions */
+        .view-transition { animation: slideUp 0.5s cubic-bezier(0.2, 1, 0.3, 1) forwards; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive Video Container */
+        .player-wrapper { position: relative; width: 100%; padding-top: 56.25%; }
+        .player-wrapper iframe {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;
+        }
+    </style>
+</head>
+<body class="selection:bg-red-600">
+
+    <!-- UNIVERSAL NAVIGATION -->
+    <nav id="navbar" class="fixed top-0 w-full z-[100] transition-all duration-300 px-4 md:px-10 h-16 md:h-20 flex items-center justify-between">
+        <div onclick="navigate('home')" class="flex items-center gap-2 cursor-pointer">
+            <div class="bg-red-600 p-1.5 rounded-lg shadow-lg shadow-red-600/30">
+                <i data-lucide="clapperboard" class="w-5 h-5 text-white"></i>
+            </div>
+            <span class="text-xl font-extrabold tracking-tighter uppercase italic">Vault</span>
+        </div>
+
+        <div class="flex-1 max-w-md mx-4 hidden sm:flex items-center bg-white/5 border border-white/10 rounded-full px-4 py-1.5 focus-within:bg-white/10 transition-all">
+            <i data-lucide="search" class="w-4 h-4 text-zinc-500"></i>
+            <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Search..." class="bg-transparent border-none focus:ring-0 w-full ml-2 text-sm text-white">
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button onclick="navigate('mylist')" class="p-2 text-zinc-400 hover:text-white transition-colors relative">
+                <i data-lucide="bookmark" class="w-6 h-6"></i>
+                <span id="listCounter" class="absolute -top-1 -right-1 bg-red-600 text-[10px] w-4 h-4 rounded-full flex items-center justify-center text-white hidden">0</span>
+            </button>
+            <div class="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center font-bold text-xs">JD</div>
+        </div>
+    </nav>
+
+    <!-- DYNAMIC CONTENT -->
+    <div id="main-content" class="min-h-screen"></div>
+
+    <script>
+        // --- DATA ---
+        const MOVIES = [
+            {
+                id: "1",
+                title: "Nobita's Earth Symphony",
+                desc: "Doraemon and friends go on an adventure to meet new buddies, connect to people with music, and save the world from a crisis.",
+                year: "2014",
+                genre: "Sci-Fi",
+                rating: "4.8",
+                poster: "Nobita's Earth Symphony.jpg",
+                backdrop: "https://drive.google.com/file/d/11vnOboVDsUEdQ74FlOBMCcFBtKA6KMbp/view?usp=drive_link",
+                video: "https://drive.google.com/file/d/1aEOXPRx41neIKpL6rE9nSGOcdfd8MDts/preview"
+ 
+            },
+            {
+                id: "2",
+                title: "sinchan",
+                desc: "Shin Chan gets his mother to finally buy him the last Ultra Hero sword, but when he opens the package there is only one rule inside. In addition to this confusion, Shin Chan meets Tostado, a dog just like Nevado but in black.",
+                year: "2024",
+                genre: "Action",
+                rating: "4.9",
+                poster: "sinchannew2.jpg",
+                backdrop: "https://image.tmdb.org/t/p/original/xOMo8BRK7PfcJv9JCnx7s5hj0PX.jpg",
+                video: "https://drive.google.com/file/d/1UdlK5XumO5kjJ66eVIyuPjw4H6883i8p/preview"
+            },
+            {
+                id: "3",
+                title: "Nobita and the Island of Miracles—Animal Adventure  ",
+                desc: "Nobita and Doraemon use time tree Mochi and catches a big bird Moa, which has been extinct for 500 years ago. To protect extinct the animal, Nobita and Doramon go to Beremon Island which is protected by a golden beetle named Herakles. They meet a girl from the Rokkoro tribe and a boy who looks exactly like Nobita on Beremon Island.",
+                year: "2023",
+                genre: "Action",
+                rating: "4.8",
+                poster: "[AnimeSalt] Doraemon - Movie 32 - Nobita and the Island of Miracles—Animal Adventure (2012) [1080p] [Multi-Audio].jpg",
+                backdrop: "https://image.tmdb.org/t/p/original/nGks949fAnSOfN86o99pS90m6vM.jpg",
+                video: "https://drive.google.com/file/d/1VZZNAucJrd0AozUB-eKzp4Wbp7PZ2giW/preview"
+            },
+            {
+                id: "4",
+                title: "Doraemon Nobita no Takarajima",
+                desc: "Upon hearing about the story of Treasure Island, Nobita dreams of discovering and exploring his own treasure island, despite the fact all of the Earth has been mapped already.",
+                year: "2023",
+                genre: "Drama",
+                rating: "4.7",
+                poster: "nobitanotakarajima.jpg",
+                backdrop: "https://image.tmdb.org/t/p/original/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg",
+                video: "https://drive.google.com/file/d/1xRKBDCrEWi_h3Mxskl4S74xPjakxYTC8/preview"
+            },
+             
+
+        ];
+
+        let watchlist = JSON.parse(localStorage.getItem('sv_list') || '[]');
+        let activeFilter = 'All';
+
+        // --- ENGINE ---
+        function navigate(view, id = null) {
+            const container = document.getElementById('main-content');
+            window.scrollTo(0, 0);
+
+            if (view === 'home') {
+                renderHome();
+            } else if (view === 'details') {
+                renderDetails(id);
+            } else if (view === 'player') {
+                renderPlayer(id);
+            } else if (view === 'mylist') {
+                renderMyList();
+            }
+            lucide.createIcons();
+            updateListBadge();
+        }
+
+        function renderHome() {
+            const hero = MOVIES[0];
+            const filtered = activeFilter === 'All' ? MOVIES : MOVIES.filter(m => m.genre === activeFilter);
+            
+            document.getElementById('main-content').innerHTML = `
+                <div class="view-transition">
+                    <!-- Fluid Hero -->
+                    <header class="relative h-[70vh] md:h-[85vh] flex flex-col justify-end px-4 md:px-10 pb-16 overflow-hidden">
+                        <img src="${hero.backdrop}" class="absolute inset-0 w-full h-full object-cover scale-105 opacity-60">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
+                        <div class="relative z-10 max-w-4xl space-y-4">
+                            <span class="bg-red-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest">Featured Now</span>
+                            <h1 class="hero-title font-extrabold tracking-tighter uppercase italic">${hero.title}</h1>
+                            <p class="text-zinc-300 text-sm md:text-lg max-w-xl line-clamp-2 md:line-clamp-3">${hero.desc}</p>
+                            <div class="flex gap-3 pt-4">
+                                <button onclick="navigate('player', '${hero.id}')" class="bg-white text-black px-6 md:px-10 py-3 rounded-xl font-bold text-sm md:text-base flex items-center gap-2 hover:bg-red-600 hover:text-white transition-all">
+                                    <i data-lucide="play" class="w-5 h-5 fill-current"></i> WATCH
+                                </button>
+                                <button onclick="navigate('details', '${hero.id}')" class="bg-white/10 backdrop-blur-md px-6 md:px-10 py-3 rounded-xl font-bold text-sm md:text-base border border-white/10">
+                                    INFO
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Catalog -->
+                    <div class="px-4 md:px-10 pb-20 -mt-10 relative z-20">
+                        <div class="flex gap-3 overflow-x-auto no-scrollbar pb-6">
+                            ${['All', 'Action', 'Sci-Fi', 'Drama'].map(cat => `
+                                <button onclick="setFilter('${cat}')" class="shrink-0 px-6 py-2 rounded-full text-xs font-bold transition-all ${activeFilter === cat ? 'bg-red-600 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-white'}">
+                                    ${cat}
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-8">
+                            ${filtered.map(m => createCard(m)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createCard(m) {
+            return `
+                <div onclick="navigate('details', '${m.id}')" class="group cursor-pointer">
+                    <div class="card-aspect rounded-2xl md:rounded-[2rem] overflow-hidden border border-white/5 bg-zinc-900 relative transition-transform duration-500 group-hover:scale-[1.03] group-hover:border-red-600">
+                        <img src="${m.poster}" class="w-full h-full object-cover" loading="lazy">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div class="bg-red-600 p-3 rounded-full shadow-xl shadow-red-600/40">
+                                <i data-lucide="play" class="w-5 h-5 fill-current text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 px-1">
+                        <h4 class="font-bold text-xs md:text-sm uppercase tracking-tight truncate">${m.title}</h4>
+                        <div class="flex justify-between items-center mt-0.5">
+                            <span class="text-[10px] text-zinc-500 font-bold tracking-widest uppercase">${m.year}</span>
+                            <span class="text-[10px] text-red-500 font-black">${m.rating} ★</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDetails(id) {
+            const movie = MOVIES.find(m => m.id === id);
+            const inList = watchlist.some(m => m.id === id);
+            document.getElementById('main-content').innerHTML = `
+                <div class="view-transition pt-24 pb-12 px-4 md:px-10">
+                    <div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 lg:gap-16">
+                        <div class="w-full md:w-[350px] lg:w-[400px] shrink-0">
+                            <img src="${movie.poster}" class="w-full rounded-3xl shadow-2xl border border-white/5">
+                        </div>
+                        <div class="flex-1 space-y-6 md:py-8">
+                            <button onclick="navigate('home')" class="text-zinc-500 hover:text-white flex items-center gap-2 text-[10px] font-bold tracking-[0.2em]">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i> BACK
+                            </button>
+                            <h1 class="hero-title font-extrabold tracking-tighter uppercase italic">${movie.title}</h1>
+                            <div class="flex gap-4 text-xs font-bold text-zinc-400">
+                                <span class="text-red-600">${movie.rating} IMDB</span>
+                                <span>${movie.year}</span>
+                                <span class="px-2 border border-white/10 rounded">${movie.genre}</span>
+                            </div>
+                            <p class="text-base md:text-xl text-zinc-300 leading-relaxed">${movie.desc}</p>
+                            <div class="flex flex-col sm:flex-row gap-4 pt-6">
+                                <button onclick="navigate('player', '${movie.id}')" class="bg-red-600 px-10 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3">
+                                    <i data-lucide="play" class="w-6 h-6 fill-current"></i> WATCH NOW
+                                </button>
+                                <button onclick="toggleList('${movie.id}')" class="bg-zinc-900 border border-white/10 px-10 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3">
+                                    <i data-lucide="${inList ? 'check' : 'plus'}" class="w-6 h-6 ${inList ? 'text-red-500' : ''}"></i> ${inList ? 'SAVED' : 'MY LIST'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPlayer(id) {
+            const movie = MOVIES.find(m => m.id === id);
+            document.getElementById('main-content').innerHTML = `
+                <div class="fixed inset-0 z-[200] bg-black flex items-center justify-center view-transition">
+                    <button onclick="navigate('details', '${movie.id}')" class="absolute top-4 left-4 z-10 p-2 bg-white/10 rounded-full text-white">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                    <div class="player-wrapper">
+                        <iframe src="${movie.video}" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMyList() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="view-transition pt-24 px-4 md:px-10 pb-20">
+                    <h1 class="text-4xl md:text-6xl font-extrabold uppercase italic tracking-tighter mb-10">My <span class="text-red-600">Watchlist</span></h1>
+                    ${watchlist.length === 0 
+                        ? `<div class="py-20 text-center text-zinc-600 font-bold uppercase tracking-widest">Your vault is empty</div>`
+                        : `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-8">${watchlist.map(m => createCard(m)).join('')}</div>`
+                    }
+                </div>
+            `;
+        }
+
+        // --- HELPERS ---
+        function setFilter(cat) { activeFilter = cat; renderHome(); lucide.createIcons(); }
+        
+        function handleSearch(val) {
+            const grid = document.querySelector('.grid');
+            if (!grid) return;
+            const filtered = MOVIES.filter(m => m.title.toLowerCase().includes(val.toLowerCase()));
+            grid.innerHTML = filtered.map(m => createCard(m)).join('') || '<p class="col-span-full py-10 text-center text-zinc-700 font-bold uppercase tracking-widest">No Matches</p>';
+            lucide.createIcons();
+        }
+
+        function toggleList(id) {
+            const movie = MOVIES.find(m => m.id === id);
+            const index = watchlist.findIndex(m => m.id === id);
+            if (index > -1) watchlist.splice(index, 1);
+            else watchlist.push(movie);
+            localStorage.setItem('sv_list', JSON.stringify(watchlist));
+            renderDetails(id);
+            lucide.createIcons();
+            updateListBadge();
+        }
+
+        function updateListBadge() {
+            const badge = document.getElementById('listCounter');
+            if (watchlist.length > 0) {
+                badge.innerText = watchlist.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        window.onscroll = () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 20) nav.classList.add('glass');
+            else nav.classList.remove('glass');
+        };
+
+        window.onload = () => navigate('home');
+    </script>
+</body>
+</html>
