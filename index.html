@@ -1,9 +1,9 @@
-   <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Streamhub </title>
+    <title>Streamhub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
@@ -49,6 +49,26 @@
         .player-wrapper iframe {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;
         }
+
+        /* Admin & Form Styles */
+        .input-dark {
+            background: #18181b;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            width: 100%;
+            outline: none;
+            transition: 0.3s;
+        }
+        .input-dark:focus { border-color: #ff0000; }
+        
+        /* Series Episode Button */
+        .episode-btn.active {
+            background-color: #dc2626; /* Red-600 */
+            color: white;
+            border-color: #dc2626;
+        }
     </style>
 </head>
 <body class="selection:bg-red-600">
@@ -63,205 +83,106 @@
 
         <div class="flex-1 max-w-md mx-4 hidden sm:flex items-center bg-white/5 border border-white/10 rounded-full px-4 py-1.5 focus-within:bg-white/10 transition-all">
             <i data-lucide="search" class="w-4 h-4 text-zinc-500"></i>
-            <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Search movies, series..." class="bg-transparent border-none focus:ring-0 w-full ml-2 text-sm text-white focus:outline-none">
+            <input type="text" id="navSearchInput" onkeypress="if(event.key === 'Enter') navigate('search', this.value)" placeholder="Search movies, series..." class="bg-transparent border-none focus:ring-0 w-full ml-2 text-sm text-white focus:outline-none">
         </div>
 
         <div class="flex items-center gap-4">
-            <button onclick="navigate('mylist')" class="p-2 text-zinc-400 hover:text-white transition-colors relative">
+             <button onclick="navigate('library')" class="p-2 text-zinc-400 hover:text-white transition-colors" title="Library">
+                <i data-lucide="grid" class="w-6 h-6"></i>
+            </button>
+            
+            <button onclick="navigate('search')" class="p-2 text-zinc-400 hover:text-white transition-colors sm:hidden" title="Search">
+                <i data-lucide="search" class="w-6 h-6"></i>
+            </button>
+
+            <button onclick="navigate('mylist')" class="p-2 text-zinc-400 hover:text-white transition-colors relative" title="My List">
                 <i data-lucide="bookmark" class="w-6 h-6"></i>
                 <span id="listCounter" class="absolute -top-1 -right-1 bg-red-600 text-[10px] w-4 h-4 rounded-full flex items-center justify-center text-white hidden">0</span>
             </button>
-            <div class="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center font-bold text-xs">JD</div>
+
+            <button onclick="navigate('admin-login')" class="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center font-bold text-xs hover:bg-red-600 transition-colors">
+                ADMIN
+            </button>
         </div>
     </nav>
 
     <div id="main-content" class="min-h-screen"></div>
 
     <script>
-        // --- DATA ---
-        // Added 'category' and 'download' fields.
-        // Added more sample data to fill categories.
-        const MOVIES = [
-            {
-                id: "1",
-                category: "Cartoon",
-                title: "Nobita's Earth Symphony",
-                desc: "Doraemon and friends go on an adventure to meet new buddies, connect to people with music, and save the world from a crisis.",
-                year: "2024",
-                genre: "Sci-Fi",
-                rating: "4.8",
-                poster: "Nobita's Earth Symphony.jpg", 
-                backdrop: "https://drive.google.com/uc?export=view&id=11vnOboVDsUEdQ74FlOBMCcFBtKA6KMbp",
-                video: "https://drive.google.com/file/d/1aEOXPRx41neIKpL6rE9nSGOcdfd8MDts/preview",
-                download: "https://drive.google.com/uc?id=1aEOXPRx41neIKpL6rE9nSGOcdfd8MDts&export=download"
+        // --- DATA & STATE MANAGEMENT ---
+        // Added 'type' field (movie/series) and 'seasons' structure for series
+        const DEFAULT_MOVIES = [
+            { id: "1", type: "movie", category: "Cartoon", title: "Nobita's Earth Symphony", desc: "Doraemon and friends go on an adventure to meet new buddies, connect to people with music, and save the world from a crisis.", year: "2024", genre: "Sci-Fi", rating: "4.8", poster: "Nobita's Earth Symphony.jpg", backdrop: "https://drive.google.com/uc?export=view&id=11vnOboVDsUEdQ74FlOBMCcFBtKA6KMbp", video: "https://drive.google.com/file/d/1aEOXPRx41neIKpL6rE9nSGOcdfd8MDts/preview", download: "https://drive.google.com/uc?id=1aEOXPRx41neIKpL6rE9nSGOcdfd8MDts&export=download" },
+            { id: "2", type: "movie", category: "Cartoon", title: "Shinchan: The Dark Hero", desc: "Shin Chan gets his mother to finally buy him the last Ultra Hero sword, but when he opens the package there is only one rule inside. Chaos ensues.", year: "2024", genre: "Comedy", rating: "4.9", poster: "sinchannew2.jpg", backdrop: "https://image.tmdb.org/t/p/original/xOMo8BRK7PfcJv9JCnx7s5hj0PX.jpg", video: "https://drive.google.com/file/d/1UdlK5XumO5kjJ66eVIyuPjw4H6883i8p/preview", download: "https://drive.google.com/uc?id=1UdlK5XumO5kjJ66eVIyuPjw4H6883i8p&export=download" },
+            { id: "3", type: "movie", category: "Cartoon", title: "Nobita & Island of Miracles", desc: "Nobita and Doraemon use the time tree Mochi to catch a big bird Moa. They travel to Beremon Island to protect extinct animals.", year: "2023", genre: "Adventure", rating: "4.8", poster: "[AnimeSalt] Doraemon - Movie 32 - Nobita and the Island of Miracles—Animal Adventure (2012) [1080p] [Multi-Audio].jpg", backdrop: "https://image.tmdb.org/t/p/original/nGks949fAnSOfN86o99pS90m6vM.jpg", video: "https://drive.google.com/file/d/1VZZNAucJrd0AozUB-eKzp4Wbp7PZ2giW/preview", download: "https://drive.google.com/uc?id=1VZZNAucJrd0AozUB-eKzp4Wbp7PZ2giW&export=download" },
+            { id: "4", type: "movie", category: "Cartoon", title: "Nobita no Takarajima", desc: "Upon hearing about the story of Treasure Island, Nobita dreams of discovering and exploring his own treasure island.", year: "2023", genre: "Fantasy", rating: "4.7", poster: "nobitanotakarajima.jpg", backdrop: "https://image.tmdb.org/t/p/original/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg", video: "https://drive.google.com/file/d/1xRKBDCrEWi_h3Mxskl4S74xPjakxYTC8/preview", download: "https://drive.google.com/uc?id=1xRKBDCrEWi_h3Mxskl4S74xPjakxYTC8&export=download" },
+            { id: "5", type: "movie", category: "Movies", title: "HouseMates", desc: "Newly married Karthik and Anu buys an old apartment and starts their life, soon they start witnessing strange things happening in the house and and they think it is an act of ghost, but soon they find the shocking truth.", year: "2023", genre: "Biography", rating: "8.4", poster: "HouseMates.jpg", backdrop: "HouseMates.jpg", video: "https://drive.google.com/file/d/1GgpMlcd7s_B7tcfIiMASsSFobd3jDIWw/preview", download: "#" },
+            { id: "6", type: "movie", category: "Movies", title: "Bakasuraristorent", desc: "A wish of 5 youngsters leads them to unveil a supernatural force lurking beneath around them", year: "2024", genre: "Sci-Fi", rating: "8.8", poster: "bakasuraristorent1.jpg", backdrop: "bakasuraristorent1.jpg ", video: "https://drive.google.com/file/d/1ULN377YQ_cOvfhssPrUJ102nL0zwNkD-/preview", download: "#" },
+            { id: "7", type: "series", category: "Series", title: "Stranger Things", desc: "When a young boy vanishes, a small town uncovers a mystery involving secret experiments, terrifying supernatural forces, and one strange little girl.", year: "2022", genre: "Horror", rating: "8.7", poster: "strangerthings5.jpg", backdrop: "strangerthings5.jpg",  
+              // EXAMPLE SERIES DATA STRUCTURE
+              seasons: {
+                  "Season 1": [
+                      { title: "Chapter One: The Vanishing", link: "https://drive.google.com/file/d/1VZZNAucJrd0AozUB-eKzp4Wbp7PZ2giW/preview" }, // Placeholder links
+                      { title: "Chapter Two: The Weirdo", link: "https://drive.google.com/file/d/1GgpMlcd7s_B7tcfIiMASsSFobd3jDIWw/preview" }
+                  ],
+                  "Season 2": [
+                       { title: "Chapter One: MADMAX", link: "https://drive.google.com/file/d/1xRKBDCrEWi_h3Mxskl4S74xPjakxYTC8/preview" }
+                  ]
+              },
+              video: "", download: "#" 
             },
-            {
-                id: "2",
-                category: "Cartoon",
-                title: "Shinchan: The Dark Hero",
-                desc: "Shin Chan gets his mother to finally buy him the last Ultra Hero sword, but when he opens the package there is only one rule inside. Chaos ensues.",
-                year: "2024",
-                genre: "Comedy",
-                rating: "4.9",
-                poster: "sinchannew2.jpg",
-                backdrop: "https://image.tmdb.org/t/p/original/xOMo8BRK7PfcJv9JCnx7s5hj0PX.jpg",
-                video: "https://drive.google.com/file/d/1UdlK5XumO5kjJ66eVIyuPjw4H6883i8p/preview",
-                download: "https://drive.google.com/uc?id=1UdlK5XumO5kjJ66eVIyuPjw4H6883i8p&export=download"
-            },
-            {
-                id: "3",
-                category: "Cartoon",
-                title: "Nobita & Island of Miracles",
-                desc: "Nobita and Doraemon use the time tree Mochi to catch a big bird Moa. They travel to Beremon Island to protect extinct animals.",
-                year: "2023",
-                genre: "Adventure",
-                rating: "4.8",
-                poster: "[AnimeSalt] Doraemon - Movie 32 - Nobita and the Island of Miracles—Animal Adventure (2012) [1080p] [Multi-Audio].jpg",
-                backdrop: "https://image.tmdb.org/t/p/original/nGks949fAnSOfN86o99pS90m6vM.jpg",
-                video: "https://drive.google.com/file/d/1VZZNAucJrd0AozUB-eKzp4Wbp7PZ2giW/preview",
-                download: "https://drive.google.com/uc?id=1VZZNAucJrd0AozUB-eKzp4Wbp7PZ2giW&export=download"
-            },
-            {
-                id: "4",
-                category: "Cartoon",
-                title: "Nobita no Takarajima",
-                desc: "Upon hearing about the story of Treasure Island, Nobita dreams of discovering and exploring his own treasure island.",
-                year: "2023",
-                genre: "Fantasy",
-                rating: "4.7",
-                poster: "nobitanotakarajima.jpg",
-                backdrop: "https://image.tmdb.org/t/p/original/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg",
-                video: "https://drive.google.com/file/d/1xRKBDCrEWi_h3Mxskl4S74xPjakxYTC8/preview",
-                download: "https://drive.google.com/uc?id=1xRKBDCrEWi_h3Mxskl4S74xPjakxYTC8&export=download"
-            },
-            // --- NEW CARDS FOR CATEGORIES ---
-            {
-                id: "5",
-                category: "Movies",
-                title: "HouseMates",
-                desc: "Newly married Karthik and Anu buys an old apartment and starts their life, soon they start witnessing strange things happening in the house and and they think it is an act of ghost, but soon they find the shocking truth.",
-                year: "2023",
-                genre: "Biography",
-                rating: "8.4",
-                poster: "HouseMates.jpg",
-                backdrop: "HouseMates.jpg",
-                video: "https://drive.google.com/file/d/1GgpMlcd7s_B7tcfIiMASsSFobd3jDIWw/preview", // Placeholder link
- 
-                download: "#"
-            },
-            {
-                id: "6",
-                category: "Movies",
-                title: "Bakasuraristorent",
-                desc: "A wish of 5 youngsters leads them to unveil a supernatural force lurking beneath around them",
-                year: "2024",
-                genre: "Sci-Fi",
-                rating: "8.8",
-                poster: "bakasuraristorent1.jpg",
-                backdrop: "bakasuraristorent1.jpg ",
-                video: "https://drive.google.com/file/d/1ULN377YQ_cOvfhssPrUJ102nL0zwNkD-/preview", // Placeholder
-                download: "#"
-            },
-            {
-                id: "7",
-                category: "Series",
-                title: "Stranger Things",
-                desc: "When a young boy vanishes, a small town uncovers a mystery involving secret experiments, terrifying supernatural forces, and one strange little girl.",
-                year: "2022",
-                genre: "Horror",
-                rating: "8.7",
-                poster: "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg",
-                backdrop: "https://image.tmdb.org/t/p/original/56v2KjBlU4XaOv9rVYkJu64MdbH.jpg",
-                video: "https://drive.google.com/file/d/1VZZNAucJrd0AozUB-eKzp4Wbp7PZ2giW/preview", // Placeholder
-                download: "#"
-            },
-            {
-                id: "8",
-                category: "Movies",
-                title: "Pushpa2TheRule",
-                desc: "A smuggling kingpin faces off against a vengeful rival while manipulating politics, making big deals, and navigating tense confrontations. A public apology leads to a dramatic showdown, ending with challenge.",
-                year: "2013",
-                genre: "Crime",
-                rating: "9.5",
-                poster: "https://i.pinimg.com/736x/fa/c5/e4/fac5e4b9a664ae363c1b87c5e2e79bba.jpg",
-                backdrop: "https://i.pinimg.com/736x/fa/c5/e4/fac5e4b9a664ae363c1b87c5e2e79bba.jpg",
-                video: "https://drive.google.com/file/d/1KMpDIUADHhRtgoSwM2S3M2GlZqjsF2N1/preview", // Placeholder
+            { id: "8", type: "movie", category: "Movies", title: "Pushpa2TheRule", desc: "A smuggling kingpin faces off against a vengeful rival while manipulating politics, making big deals, and navigating tense confrontations. A public apology leads to a dramatic showdown, ending with challenge.", year: "2013", genre: "Crime", rating: "9.5", poster: "https://i.pinimg.com/736x/fa/c5/e4/fac5e4b9a664ae363c1b87c5e2e79bba.jpg", backdrop: "https://i.pinimg.com/736x/fa/c5/e4/fac5e4b9a664ae363c1b87c5e2e79bba.jpg", video: "https://drive.google.com/file/d/1KMpDIUADHhRtgoSwM2S3M2GlZqjsF2N1/preview", download: "#" },
+            { id: "9", type: "movie", category: "movies", title: "it", desc: "In the summer of 1989, a group of bullied kids band together to destroy a shape-shifting monster, which disguises itself as a clown and preys on the children of Derry, their small Maine town.", year: "2017", genre: " Horror", rating: "7.3", poster: "https://i.pinimg.com/1200x/b7/98/6f/b7986fd15b8305fee4ecacdd035eb972.jpg", backdrop: "https://i.pinimg.com/1200x/b7/98/6f/b7986fd15b8305fee4ecacdd035eb972.jpg", video: "https://drive.google.com/file/d/1wcayQvEctgF11OMQmQz1XzjWhVkmJEXM/preview", download: "#" },
+            { id: "10", type: "movie", category: "movies", title: "IronMan 3", desc: "When Tony Stark's world is torn apart by a formidable terrorist called the Mandarin, he starts an odyssey of rebuilding and retribution.", year: "2023", genre: "Action", rating: "7.1", poster: "https://i.pinimg.com/1200x/6d/15/0c/6d150c6e17f6c7f33362e34fab1c10c7.jpg", backdrop: "https://i.pinimg.com/1200x/6d/15/0c/6d150c6e17f6c7f33362e34fab1c10c7.jpg", video: "https://drive.google.com/file/d/1oTlzFUwZrzlPKHwGcIeMOjZvXLaqy7h1/preview", download: "#" },
+            { id: "11", type: "movie", category: "Movies", title: "Ayalaan", desc: "With the price on his head ever increasing, John Wick uncovers a path to defeating The High Table.", year: "2024", genre: "Action", rating: "5.9", poster: "ayalaan1.jpg", backdrop: "https://im.jdmagicbox.com/comp/jd_social/news/2024jan13/image-1251988-l6jmu24mxj.jpg?clr=#293d3d", video: "https://drive.google.com/file/d/1GgpMlcd7s_B7tcfIiMASsSFobd3jDIWw/preview", download: "#" },
+            { id: "12", type: "movie", category: "Movies", title: "Mark", desc: "With the price on his head ever increasing, John Wick uncovers a path to defeating The High Table.", year: "2026", genre: "Action", rating: "5.9", poster: "https://images.ottplay.com/images/media/gallery/750x1125jiohosterposter-1769143953.jpg", backdrop: "https://images.ottplay.com/images/media/gallery/750x1125jiohosterposter-1769143953.jpg",video: "https://drive.google.com/file/d/1ui3iVYSLIHla2FwK9ay4FJdcTBE0JAex/preview", download: "#" },
  
  
-                download: "#"
-            },
-            {
-                id: "9",
-                category: "Series",
-                title: "Terrifier 2",
-                desc: "Resurrected by a sinister entity, Art the Clown returns to Miles County to terrorize a teenage girl and her younger brother on Halloween night.",
-                year: "2022",
-                genre: "Drama",
-                rating: "6.0",
-                poster: "https://i.pinimg.com/1200x/ff/e7/f5/ffe7f5bff25f6dd007b81b9f368e2d6b.jpg",
-                backdrop: "https://i.pinimg.com/1200x/ff/e7/f5/ffe7f5bff25f6dd007b81b9f368e2d6b.jpg",
-                video: "https://drive.google.com/file/d/1tjCigWfSQCeouhwOwwAQwe574RMLtDUB/preview",
- 
- 
-                download: "#"
-            },
-            {
-                id: "10",
-                category: "Cartoon",
-                title: "Spider-Man: Across the Spider-Verse",
-                desc: "Miles Morales catapults across the Multiverse, where he encounters a team of Spider-People charged with protecting its very existence.",
-                year: "2023",
-                genre: "Action",
-                rating: "8.6",
-                poster: "https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg",
-                backdrop: "https://image.tmdb.org/t/p/original/4HodYYKEIsGOdinkGi2Ucz6X9i0.jpg",
-                video: "https://drive.google.com/file/d/1aEOXPRx41neIKpL6rE9nSGOcdfd8MDts/preview",
-                download: "#"
-            },
-            {
-                id: "11",
-                category: "Movies",
-                title: "Ayalaan",
-                desc: "With the price on his head ever increasing, John Wick uncovers a path to defeating The High Table.",
-                year: "2024",
-                genre: "Action",
-                rating: "5.9",
-                poster: "ayalaan1.jpg",
-                backdrop: "https://im.jdmagicbox.com/comp/jd_social/news/2024jan13/image-1251988-l6jmu24mxj.jpg?clr=#293d3d",
-                video: "https://drive.google.com/file/d/1GgpMlcd7s_B7tcfIiMASsSFobd3jDIWw/preview",
-                download: "#"
-            }
         ];
 
+        // Global State
+        let dbMovies = [];
         let watchlist = JSON.parse(localStorage.getItem('sv_list') || '[]');
-        let activeFilter = 'All'; // Represents the Category now
+        let activeFilter = 'All';
+        let adminEditId = null;
+
+        // Initialize DB
+        function initDB() {
+            const saved = localStorage.getItem('sv_movies_v2'); // New version key for safety
+            if (saved) {
+                dbMovies = JSON.parse(saved);
+            } else {
+                dbMovies = DEFAULT_MOVIES;
+                saveDB();
+            }
+        }
+        function saveDB() {
+            localStorage.setItem('sv_movies_v2', JSON.stringify(dbMovies));
+        }
+        initDB();
 
         // --- ENGINE ---
-        function navigate(view, id = null) {
+        function navigate(view, param = null, extra = null) {
             const container = document.getElementById('main-content');
             window.scrollTo(0, 0);
 
-            if (view === 'home') {
-                renderHome();
-            } else if (view === 'details') {
-                renderDetails(id);
-            } else if (view === 'player') {
-                renderPlayer(id);
-            } else if (view === 'mylist') {
-                renderMyList();
-            }
+            if (view === 'home') renderHome();
+            else if (view === 'details') renderDetails(param);
+            else if (view === 'player') renderPlayer(param, extra); // extra is videoUrl for series
+            else if (view === 'mylist') renderMyList();
+            else if (view === 'library') renderLibrary();
+            else if (view === 'search') renderSearch(param);
+            else if (view === 'admin-login') renderAdminLogin();
+            else if (view === 'admin-panel') renderAdminPanel();
+            
             lucide.createIcons();
             updateListBadge();
         }
 
+        // --- HOME VIEW ---
         function renderHome() {
-            // Pick a random hero from Movies to showcase
-            const hero = MOVIES.find(m => m.id === "11") || MOVIES[0];
-            
-            // Filter Logic based on Category
-            const filtered = activeFilter === 'All' 
-                ? MOVIES 
-                : MOVIES.filter(m => m.category === activeFilter);
+            const hero = dbMovies.find(m => m.id === "11") || dbMovies[0];
+            const filtered = activeFilter === 'All' ? dbMovies : dbMovies.filter(m => m.category === activeFilter);
             
             document.getElementById('main-content').innerHTML = `
                 <div class="view-transition">
@@ -280,12 +201,10 @@
                             </div>
                             <p class="text-zinc-300 text-sm md:text-lg max-w-xl line-clamp-2 md:line-clamp-3">${hero.desc}</p>
                             <div class="flex gap-3 pt-4">
-                                <button onclick="navigate('player', '${hero.id}')" class="bg-white text-black px-6 md:px-10 py-3 rounded-xl font-bold text-sm md:text-base flex items-center gap-2 hover:bg-red-600 hover:text-white transition-all">
+                                <button onclick="navigate('details', '${hero.id}')" class="bg-white text-black px-6 md:px-10 py-3 rounded-xl font-bold text-sm md:text-base flex items-center gap-2 hover:bg-red-600 hover:text-white transition-all">
                                     <i data-lucide="play" class="w-5 h-5 fill-current"></i> WATCH
                                 </button>
-                                <button onclick="navigate('details', '${hero.id}')" class="bg-white/10 backdrop-blur-md px-6 md:px-10 py-3 rounded-xl font-bold text-sm md:text-base border border-white/10">
-                                    INFO
-                                </button>
+                                <button onclick="navigate('details', '${hero.id}')" class="bg-white/10 backdrop-blur-md px-6 md:px-10 py-3 rounded-xl font-bold text-sm md:text-base border border-white/10">INFO</button>
                             </div>
                         </div>
                     </header>
@@ -298,7 +217,6 @@
                                 </button>
                             `).join('')}
                         </div>
-
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-8">
                             ${filtered.map(m => createCard(m)).join('')}
                         </div>
@@ -307,6 +225,359 @@
             `;
         }
 
+        // --- SEARCH VIEW ---
+        function renderSearch(query = '') {
+            document.getElementById('main-content').innerHTML = `
+                <div class="view-transition pt-24 px-4 md:px-10 pb-20">
+                    <h1 class="text-3xl font-extrabold uppercase italic tracking-tighter mb-8">Search & Explore</h1>
+                    
+                    <div class="flex flex-col md:flex-row gap-4 mb-10">
+                        <div class="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 flex items-center gap-3">
+                            <i data-lucide="search" class="w-5 h-5 text-zinc-400"></i>
+                            <input type="text" id="pageSearchInput" value="${query}" oninput="performSearch()" placeholder="Search title..." class="bg-transparent border-none w-full text-white focus:outline-none placeholder-zinc-500">
+                        </div>
+                        <select id="genreFilter" onchange="performSearch()" class="bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-zinc-300 focus:outline-none">
+                            <option value="All">All Genres</option>
+                            <option value="Action">Action</option>
+                            <option value="Sci-Fi">Sci-Fi</option>
+                            <option value="Horror">Horror</option>
+                            <option value="Comedy">Comedy</option>
+                            <option value="Adventure">Adventure</option>
+                        </select>
+                         <select id="catFilter" onchange="performSearch()" class="bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-zinc-300 focus:outline-none">
+                            <option value="All">All Categories</option>
+                            <option value="Movies">Movies</option>
+                            <option value="Cartoon">Cartoon</option>
+                            <option value="Series">Series</option>
+                        </select>
+                    </div>
+
+                    <div id="searchResults" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-8">
+                        </div>
+                </div>
+            `;
+            performSearch();
+            lucide.createIcons();
+        }
+
+        function performSearch() {
+            const q = document.getElementById('pageSearchInput').value.toLowerCase();
+            const g = document.getElementById('genreFilter').value;
+            const c = document.getElementById('catFilter').value;
+
+            const results = dbMovies.filter(m => {
+                const matchText = m.title.toLowerCase().includes(q);
+                const matchGenre = g === 'All' || m.genre.includes(g);
+                const matchCat = c === 'All' || m.category === c;
+                return matchText && matchGenre && matchCat;
+            });
+
+            document.getElementById('searchResults').innerHTML = results.length > 0 
+                ? results.map(m => createCard(m)).join('')
+                : `<div class="col-span-full py-20 text-center text-zinc-600 font-bold uppercase tracking-widest">No Matches Found</div>`;
+            
+            lucide.createIcons();
+        }
+
+        // --- LIBRARY VIEW ---
+        function renderLibrary() {
+            const genres = [...new Set(dbMovies.map(m => m.genre))];
+            
+            let html = `
+                <div class="view-transition pt-24 px-4 md:px-10 pb-20">
+                    <h1 class="text-4xl md:text-6xl font-extrabold uppercase italic tracking-tighter mb-10">Library <span class="text-red-600">Vault</span></h1>
+            `;
+
+            genres.forEach(g => {
+                const sectionMovies = dbMovies.filter(m => m.genre === g);
+                html += `
+                    <div class="mb-12">
+                        <div class="flex items-center gap-3 mb-4 border-b border-white/10 pb-2">
+                            <div class="w-2 h-6 bg-red-600 rounded-sm"></div>
+                            <h2 class="text-xl font-bold uppercase tracking-wide">${g}</h2>
+                            <span class="text-xs text-zinc-500 font-mono ml-auto">${sectionMovies.length} Items</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                            ${sectionMovies.map(m => createCard(m)).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            document.getElementById('main-content').innerHTML = html;
+        }
+
+        // --- ADMIN VIEW ---
+        function renderAdminLogin() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="min-h-screen flex items-center justify-center bg-black view-transition px-4">
+                    <div class="w-full max-w-md bg-zinc-900 border border-white/10 p-8 rounded-3xl text-center">
+                        <div class="w-16 h-16 bg-red-600/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i data-lucide="lock" class="w-8 h-8"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold mb-2">Admin Access</h2>
+                        <p class="text-zinc-500 mb-6 text-sm">Enter security PIN to manage content</p>
+                        <input type="password" id="adminPin" class="input-dark text-center text-2xl tracking-[0.5em] font-bold mb-6" maxlength="4" placeholder="••••">
+                        <button onclick="checkAdmin()" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl font-bold transition-colors">UNLOCK PANEL</button>
+                        <button onclick="navigate('home')" class="w-full mt-3 text-zinc-500 text-xs hover:text-white">RETURN HOME</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function checkAdmin() {
+            const pin = document.getElementById('adminPin').value;
+            if (pin === '1234') { 
+                navigate('admin-panel');
+            } else {
+                alert('Access Denied');
+            }
+        }
+
+        function renderAdminPanel() {
+            const total = dbMovies.length;
+            const seriesCount = dbMovies.filter(m => m.type === 'series').length;
+            
+            document.getElementById('main-content').innerHTML = `
+                <div class="view-transition pt-24 px-4 md:px-10 pb-20 max-w-7xl mx-auto">
+                    <div class="flex justify-between items-end mb-8">
+                        <div>
+                            <h1 class="text-3xl font-extrabold uppercase italic tracking-tighter">Admin <span class="text-red-600">Dashboard</span></h1>
+                            <p class="text-zinc-500 text-sm">Manage Movies & Series</p>
+                        </div>
+                        <button onclick="navigate('home')" class="text-xs font-bold border border-white/10 px-4 py-2 rounded hover:bg-white/5">EXIT</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+                        <div class="bg-zinc-900 border border-white/10 p-4 rounded-xl">
+                            <div class="text-zinc-500 text-xs uppercase font-bold">Total Items</div>
+                            <div class="text-2xl font-bold text-white">${total}</div>
+                        </div>
+                        <div class="bg-zinc-900 border border-white/10 p-4 rounded-xl">
+                            <div class="text-zinc-500 text-xs uppercase font-bold">Series</div>
+                            <div class="text-2xl font-bold text-red-500">${seriesCount}</div>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <div class="md:col-span-1">
+                            <div class="bg-zinc-900 border border-white/10 p-6 rounded-2xl sticky top-24">
+                                <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                                    <i data-lucide="plus-circle" class="w-5 h-5 text-red-600"></i> 
+                                    <span id="formTitle">Add Content</span>
+                                </h3>
+                                <form onsubmit="handleMovieSubmit(event)" class="space-y-3">
+                                    <input type="hidden" id="editId">
+                                    
+                                    <select id="mType" onchange="toggleFormType()" class="input-dark bg-black font-bold text-red-500">
+                                        <option value="movie">Movie</option>
+                                        <option value="series">Series / Anime</option>
+                                    </select>
+
+                                    <input required id="mTitle" placeholder="Title" class="input-dark">
+                                    <textarea required id="mDesc" placeholder="Description" class="input-dark h-24 text-sm"></textarea>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <input required id="mYear" placeholder="Year" class="input-dark">
+                                        <input required id="mRating" placeholder="Rating" class="input-dark">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <input required id="mGenre" placeholder="Genre" class="input-dark">
+                                        <select id="mCat" class="input-dark">
+                                            <option value="Movies">Movies</option>
+                                            <option value="Cartoon">Cartoon</option>
+                                            <option value="Series">Series</option>
+                                        </select>
+                                    </div>
+                                    <input required id="mPoster" placeholder="Poster URL" class="input-dark text-xs">
+                                    <input required id="mBackdrop" placeholder="Backdrop URL" class="input-dark text-xs">
+                                    
+                                    <div id="movieInputs">
+                                        <input id="mVideo" placeholder="Movie Stream URL" class="input-dark text-xs">
+                                    </div>
+
+                                    <div id="seriesInputs" class="hidden">
+                                        <p class="text-[10px] text-zinc-500 mb-1">Enter Episodes: Season | Name | URL (One per line)</p>
+                                        <textarea id="mSeasonsData" placeholder="Season 1 | Ep 1 Name | https://link...&#10;Season 1 | Ep 2 Name | https://link...&#10;Season 2 | Ep 1 Name | https://link..." class="input-dark h-32 text-xs font-mono"></textarea>
+                                    </div>
+
+                                    <input id="mDown" placeholder="Download Link" class="input-dark text-xs">
+                                    
+                                    <div class="flex gap-2 pt-2">
+                                        <button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 py-2 rounded-lg font-bold text-sm">SAVE</button>
+                                        <button type="button" onclick="resetForm()" class="px-4 bg-zinc-800 rounded-lg hover:bg-zinc-700">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2">
+                             <div class="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden">
+                                <table class="w-full text-left text-sm text-zinc-400">
+                                    <thead class="bg-black/30 text-xs uppercase font-bold text-zinc-500">
+                                        <tr>
+                                            <th class="p-4">Title</th>
+                                            <th class="p-4 hidden sm:table-cell">Type</th>
+                                            <th class="p-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-white/5">
+                                        ${dbMovies.map(m => `
+                                            <tr class="hover:bg-white/5 transition-colors">
+                                                <td class="p-4 flex items-center gap-3">
+                                                    <img src="${m.poster}" class="w-8 h-12 object-cover rounded bg-zinc-800">
+                                                    <div>
+                                                        <div class="font-bold text-white">${m.title}</div>
+                                                        <div class="text-[10px]">${m.year} • ${m.genre}</div>
+                                                    </div>
+                                                </td>
+                                                <td class="p-4 hidden sm:table-cell">
+                                                    <span class="bg-zinc-800 px-2 py-1 rounded text-[10px] uppercase border ${m.type === 'series' ? 'border-red-500/50 text-red-400' : 'border-white/10'}">${m.type || 'movie'}</span>
+                                                </td>
+                                                <td class="p-4 text-right">
+                                                    <button onclick="editMovie('${m.id}')" class="text-blue-400 hover:text-white mr-2"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                                                    <button onclick="deleteMovie('${m.id}')" class="text-red-500 hover:text-white"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            toggleFormType(); // Ensure correct inputs show on load
+            lucide.createIcons();
+        }
+
+        function toggleFormType() {
+            const type = document.getElementById('mType').value;
+            if (type === 'series') {
+                document.getElementById('movieInputs').classList.add('hidden');
+                document.getElementById('seriesInputs').classList.remove('hidden');
+            } else {
+                document.getElementById('movieInputs').classList.remove('hidden');
+                document.getElementById('seriesInputs').classList.add('hidden');
+            }
+        }
+
+        function handleMovieSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('editId').value || Date.now().toString();
+            const type = document.getElementById('mType').value;
+            
+            let seasonsData = null;
+            if (type === 'series') {
+                seasonsData = parseSeriesData(document.getElementById('mSeasonsData').value);
+            }
+
+            const newMovie = {
+                id: id,
+                type: type,
+                title: document.getElementById('mTitle').value,
+                desc: document.getElementById('mDesc').value,
+                year: document.getElementById('mYear').value,
+                rating: document.getElementById('mRating').value,
+                genre: document.getElementById('mGenre').value,
+                category: document.getElementById('mCat').value,
+                poster: document.getElementById('mPoster').value,
+                backdrop: document.getElementById('mBackdrop').value,
+                video: type === 'movie' ? document.getElementById('mVideo').value : '',
+                seasons: seasonsData,
+                download: document.getElementById('mDown').value || '#'
+            };
+
+            if (adminEditId) {
+                const index = dbMovies.findIndex(m => m.id === adminEditId);
+                dbMovies[index] = newMovie;
+                adminEditId = null;
+            } else {
+                dbMovies.unshift(newMovie);
+            }
+
+            saveDB();
+            renderAdminPanel();
+            resetForm();
+        }
+
+        // Convert Text Area lines to JSON Object
+        function parseSeriesData(text) {
+            const lines = text.split('\n');
+            const seasons = {};
+            
+            lines.forEach(line => {
+                if (!line.trim()) return;
+                // Expected format: Season X | Ep Name | Link
+                const parts = line.split('|');
+                if (parts.length >= 3) {
+                    const sName = parts[0].trim();
+                    const epTitle = parts[1].trim();
+                    const epLink = parts[2].trim();
+                    
+                    if (!seasons[sName]) seasons[sName] = [];
+                    seasons[sName].push({ title: epTitle, link: epLink });
+                }
+            });
+            return seasons; // Returns object { "Season 1": [...], "Season 2": [...] }
+        }
+
+        // Convert JSON Object back to Text Area lines for Editing
+        function stringifySeriesData(seasonsObj) {
+            if (!seasonsObj) return '';
+            let text = '';
+            for (const [sName, eps] of Object.entries(seasonsObj)) {
+                eps.forEach(ep => {
+                    text += `${sName} | ${ep.title} | ${ep.link}\n`;
+                });
+            }
+            return text;
+        }
+
+        function deleteMovie(id) {
+            if(confirm('Delete this permanently?')) {
+                dbMovies = dbMovies.filter(m => m.id !== id);
+                saveDB();
+                renderAdminPanel();
+            }
+        }
+
+        function editMovie(id) {
+            const m = dbMovies.find(x => x.id === id);
+            adminEditId = id;
+            document.getElementById('formTitle').innerText = 'Edit Content';
+            document.getElementById('editId').value = m.id;
+            document.getElementById('mType').value = m.type || 'movie';
+            
+            document.getElementById('mTitle').value = m.title;
+            document.getElementById('mDesc').value = m.desc;
+            document.getElementById('mYear').value = m.year;
+            document.getElementById('mRating').value = m.rating;
+            document.getElementById('mGenre').value = m.genre;
+            document.getElementById('mCat').value = m.category;
+            document.getElementById('mPoster').value = m.poster;
+            document.getElementById('mBackdrop').value = m.backdrop;
+            document.getElementById('mVideo').value = m.video;
+            document.getElementById('mDown').value = m.download;
+            
+            if (m.type === 'series') {
+                document.getElementById('mSeasonsData').value = stringifySeriesData(m.seasons);
+            }
+            
+            toggleFormType();
+            window.scrollTo(0,0);
+        }
+
+        function resetForm() {
+            document.querySelector('form').reset();
+            adminEditId = null;
+            document.getElementById('editId').value = '';
+            document.getElementById('formTitle').innerText = 'Add Content';
+            document.getElementById('mType').value = 'movie';
+            toggleFormType();
+        }
+
+        // --- COMMON COMPONENTS ---
         function createCard(m) {
             return `
                 <div onclick="navigate('details', '${m.id}')" class="group cursor-pointer">
@@ -317,6 +588,10 @@
                                 <i data-lucide="play" class="w-5 h-5 fill-current text-white"></i>
                             </div>
                         </div>
+                        ${m.type === 'series' 
+                            ? `<div class="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold uppercase shadow-lg">SERIES</div>`
+                            : ''
+                        }
                         <div class="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] font-bold uppercase border border-white/10">
                             ${m.category}
                         </div>
@@ -332,10 +607,40 @@
             `;
         }
 
+        // UPDATED: renderDetails now handles Series UI
         function renderDetails(id) {
-            const movie = MOVIES.find(m => m.id === id);
+            const movie = dbMovies.find(m => m.id === id);
             const inList = watchlist.some(m => m.id === id);
+            const isSeries = movie.type === 'series' && movie.seasons;
             
+            // Generate Series HTML if applicable
+            let seriesHtml = '';
+            if (isSeries) {
+                const seasonNames = Object.keys(movie.seasons);
+                // Default to first season
+                const firstSeason = seasonNames[0]; 
+                
+                seriesHtml = `
+                    <div class="mt-8 bg-zinc-900/50 border border-white/5 rounded-2xl p-6">
+                        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                            <i data-lucide="layers" class="w-5 h-5 text-red-600"></i> Episodes
+                        </h3>
+                        
+                        <div class="mb-6 flex gap-2 overflow-x-auto no-scrollbar" id="seasonTabs">
+                            ${seasonNames.map((s, idx) => `
+                                <button onclick="switchSeason('${id}', '${s}')" class="px-4 py-2 rounded-lg text-sm font-bold border border-white/10 transition-colors ${idx===0 ? 'bg-white text-black' : 'bg-black text-zinc-400 hover:text-white'}">
+                                    ${s}
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div id="episodeList" class="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            ${generateEpisodeList(movie, firstSeason)}
+                        </div>
+                    </div>
+                `;
+            }
+
             document.getElementById('main-content').innerHTML = `
                 <div class="view-transition pt-24 pb-12 px-4 md:px-10">
                     <div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 lg:gap-16">
@@ -361,9 +666,15 @@
                             
                             <div class="flex flex-col gap-3 pt-6">
                                 <div class="flex flex-col sm:flex-row gap-3">
-                                    <button onclick="navigate('player', '${movie.id}')" class="bg-red-600 hover:bg-red-700 transition-colors px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-red-900/20 w-full sm:w-auto">
-                                        <i data-lucide="play" class="w-5 h-5 fill-current"></i> WATCH NOW
-                                    </button>
+                                    ${!isSeries ? `
+                                        <button onclick="navigate('player', '${movie.id}')" class="bg-red-600 hover:bg-red-700 transition-colors px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-red-900/20 w-full sm:w-auto">
+                                            <i data-lucide="play" class="w-5 h-5 fill-current"></i> WATCH MOVIE
+                                        </button>
+                                    ` : `
+                                        <button class="bg-zinc-800 cursor-default px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 w-full sm:w-auto border border-white/10">
+                                            <i data-lucide="monitor-play" class="w-5 h-5"></i> SELECT EPISODE BELOW
+                                        </button>
+                                    `}
                                     
                                     <button onclick="toggleList('${movie.id}')" class="bg-zinc-800 hover:bg-zinc-700 border border-white/10 px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-colors w-full sm:w-auto">
                                         <i data-lucide="${inList ? 'check' : 'plus'}" class="w-5 h-5 ${inList ? 'text-red-500' : ''}"></i> ${inList ? 'SAVED' : 'MY LIST'}
@@ -373,16 +684,60 @@
                                 <a href="${movie.download}" target="_blank" class="group bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 px-8 py-4 rounded-xl font-bold text-zinc-400 hover:text-white flex items-center justify-center gap-3 transition-all w-full sm:w-auto sm:max-w-[200px]">
                                     <i data-lucide="download" class="w-5 h-5 group-hover:scale-110 transition-transform"></i> Download
                                 </a>
-                                <p class="text-[10px] text-zinc-600 uppercase tracking-widest pl-1">Download opens external server</p>
                             </div>
+
+                            ${seriesHtml}
+
                         </div>
                     </div>
                 </div>
             `;
+            lucide.createIcons();
         }
 
-        function renderPlayer(id) {
-            const movie = MOVIES.find(m => m.id === id);
+        // Helper to generate episode HTML
+        function generateEpisodeList(movie, seasonKey) {
+            const episodes = movie.seasons[seasonKey] || [];
+            if(episodes.length === 0) return '<div class="text-zinc-500 italic">No episodes found.</div>';
+            
+            return episodes.map((ep, index) => `
+                <div onclick="navigate('player', '${movie.id}', '${ep.link}')" class="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/10 cursor-pointer border border-transparent hover:border-white/5 transition-all">
+                    <div class="text-zinc-500 font-bold text-lg w-6">${index + 1}</div>
+                    <div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center group-hover:bg-red-600 transition-colors">
+                        <i data-lucide="play" class="w-4 h-4 fill-current text-white"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-sm text-zinc-200 group-hover:text-white">${ep.title}</h4>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Logic to switch tabs on Series Page
+        function switchSeason(movieId, seasonKey) {
+            const movie = dbMovies.find(m => m.id === movieId);
+            const listContainer = document.getElementById('episodeList');
+            const tabsContainer = document.getElementById('seasonTabs');
+            
+            // Update List
+            listContainer.innerHTML = generateEpisodeList(movie, seasonKey);
+            
+            // Update Active Tab Styling
+            Array.from(tabsContainer.children).forEach(btn => {
+                if(btn.innerText.trim() === seasonKey) {
+                    btn.className = "px-4 py-2 rounded-lg text-sm font-bold border border-white/10 transition-colors bg-white text-black";
+                } else {
+                    btn.className = "px-4 py-2 rounded-lg text-sm font-bold border border-white/10 transition-colors bg-black text-zinc-400 hover:text-white";
+                }
+            });
+            lucide.createIcons();
+        }
+
+        function renderPlayer(id, videoUrl = null) {
+            const movie = dbMovies.find(m => m.id === id);
+            // If it's a series, use the passed videoUrl. If movie, use stored video.
+            const src = videoUrl || movie.video;
+            
             document.getElementById('main-content').innerHTML = `
                 <div class="fixed inset-0 z-[200] bg-black flex items-center justify-center view-transition">
                     <button onclick="navigate('details', '${movie.id}')" class="absolute top-6 left-6 z-20 p-3 bg-white/10 hover:bg-white/20 backdrop-blur rounded-full text-white transition-all">
@@ -390,7 +745,7 @@
                     </button>
                     <div class="w-full max-w-7xl mx-auto px-0 md:px-4">
                         <div class="player-wrapper shadow-2xl md:rounded-xl overflow-hidden">
-                            <iframe src="${movie.video}" allow="autoplay; fullscreen" allowfullscreen></iframe>
+                            <iframe src="${src}" allow="autoplay; fullscreen" allowfullscreen></iframe>
                         </div>
                         <div class="p-4 text-center md:text-left">
                             <h2 class="text-xl font-bold uppercase italic tracking-tight">${movie.title}</h2>
@@ -416,26 +771,11 @@
             `;
         }
 
-        // --- HELPERS ---
+        // --- UTILS ---
         function setFilter(cat) { activeFilter = cat; renderHome(); lucide.createIcons(); }
         
-        function handleSearch(val) {
-            const grid = document.querySelector('.grid');
-            if (!grid) return;
-            
-            // Allow search across titles, genres, or categories
-            const filtered = MOVIES.filter(m => 
-                m.title.toLowerCase().includes(val.toLowerCase()) || 
-                m.category.toLowerCase().includes(val.toLowerCase())
-            );
-            
-            grid.innerHTML = filtered.map(m => createCard(m)).join('') || 
-                '<p class="col-span-full py-10 text-center text-zinc-700 font-bold uppercase tracking-widest">No Matches Found</p>';
-            lucide.createIcons();
-        }
-
         function toggleList(id) {
-            const movie = MOVIES.find(m => m.id === id);
+            const movie = dbMovies.find(m => m.id === id);
             const index = watchlist.findIndex(m => m.id === id);
             if (index > -1) watchlist.splice(index, 1);
             else watchlist.push(movie);
@@ -455,15 +795,13 @@
             }
         }
 
-        // Navbar Blur Effect
         window.onscroll = () => {
             const nav = document.getElementById('navbar');
             if (window.scrollY > 20) nav.classList.add('glass');
             else nav.classList.remove('glass');
         };
 
-        // Initialize
         window.onload = () => navigate('home');
     </script>
 </body>
-</html>
+</html>  
